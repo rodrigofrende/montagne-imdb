@@ -1,4 +1,3 @@
-// API_KEY is stored in the .env file for security reasons 😉
 const API_KEY = import.meta.env.VITE_OMDB_API_KEY;
 const BASE_URL = 'https://www.omdbapi.com/';
 
