@@ -10,6 +10,7 @@ function MovieModal({ imdbID, onClose }) {
     const fetchDetails = async () => {
       try {
         setLoading(true);
+        setError(null);
         const data = await getMovieDetails(imdbID);
         setMovie(data);
       } catch (err) {
@@ -21,65 +22,180 @@ function MovieModal({ imdbID, onClose }) {
 
     if (imdbID) {
       fetchDetails();
+      document.body.style.overflow = 'hidden';
     }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
   }, [imdbID]);
+
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+
+    if (imdbID) {
+      window.addEventListener('keydown', handleEscape);
+      return () => window.removeEventListener('keydown', handleEscape);
+    }
+  }, [imdbID, onClose]);
 
   if (!imdbID) return null;
 
+  const getRatingIcon = (source) => {
+    if (source.includes('IMDb')) return '⭐';
+    if (source.includes('Rotten')) return '🍅';
+    if (source.includes('Metacritic')) return '📊';
+    return '🎯';
+  };
+
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 animate-fade-in md:p-6"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
     >
       <div 
-        className="bg-white max-w-2xl w-full max-h-screen overflow-y-auto p-6"
+        className="relative w-full max-h-[95vh] max-w-6xl overflow-hidden rounded-2xl border border-zinc-800/50 bg-black shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {loading && <p>Loading...</p>}
+        {loading && (
+          <div className="flex flex-col items-center justify-center space-y-4 p-16">
+            <div className="relative h-16 w-16">
+              <div className="absolute inset-0 rounded-full border-4 border-red-600/20"></div>
+              <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-red-600"></div>
+            </div>
+            <p className="font-light text-gray-300">Loading movie details...</p>
+          </div>
+        )}
         
-        {error && <p className="text-red-500">{error}</p>}
+        {error && (
+          <div className="p-16 text-center">
+            <p className="flex items-center justify-center gap-2 text-lg text-red-400">
+              <span className="text-3xl">⚠️</span>
+              <span>{error}</span>
+            </p>
+            <button 
+              onClick={onClose}
+              className="mt-8 rounded-xl bg-red-600 px-8 py-3 font-medium text-white transition-all duration-300 hover:bg-red-700"
+            >
+              Close
+            </button>
+          </div>
+        )}
         
         {movie && (
-          <div>
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-2xl font-bold">{movie.Title}</h2>
-              <button 
-                onClick={onClose}
-                className="text-2xl px-3"
-              >
-                ×
-              </button>
-            </div>
+          <div className="relative flex max-h-[95vh] flex-col overflow-y-auto bg-zinc-950">
+            <button 
+              onClick={onClose}
+              className="absolute right-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800/50 bg-black/90 text-gray-300 shadow-lg transition-[transform,background-color,border-color] duration-200 ease-out hover:scale-110 hover:border-red-600/50 hover:bg-red-600 hover:text-white"
+              aria-label="Close modal"
+            >
+              ✕
+            </button>
             
-            <div className="flex flex-col md:flex-row gap-4">
-              <img 
-                src={movie.Poster !== 'N/A' ? movie.Poster : 'https://via.placeholder.com/300x450?text=No+Image'}
-                alt={movie.Title}
-                className="w-full md:w-64"
-              />
+            <div className="flex flex-col bg-zinc-950 md:flex-row">
+              <div className="flex w-full items-center justify-center bg-black p-6 md:w-2/5 md:p-8 lg:w-1/3">
+                <img 
+                  src={movie.Poster !== 'N/A' ? movie.Poster : 'https://via.placeholder.com/300x450?text=No+Image'}
+                  alt={`${movie.Title} poster`}
+                  className="h-auto w-full max-w-sm rounded-xl border border-zinc-800/50 object-cover shadow-2xl md:max-w-none"
+                />
+              </div>
               
-              <div className="flex-1">
-                <p><strong>Year:</strong> {movie.Year}</p>
-                <p><strong>Rated:</strong> {movie.Rated}</p>
-                <p><strong>Runtime:</strong> {movie.Runtime}</p>
-                <p><strong>Genre:</strong> {movie.Genre}</p>
-                <p><strong>Director:</strong> {movie.Director}</p>
-                <p><strong>Actors:</strong> {movie.Actors}</p>
-                <p className="mt-4"><strong>Plot:</strong> {movie.Plot}</p>
+              <div className="flex-1 bg-gradient-to-br from-zinc-950 to-black p-6 md:p-8 lg:p-10">
+                <h2 id="modal-title" className="mb-4 text-3xl font-bold tracking-tight text-white md:text-4xl lg:text-5xl">
+                  {movie.Title}
+                </h2>
                 
-                {movie.Ratings && movie.Ratings.length > 0 && (
-                  <div className="mt-4">
-                    <strong>Ratings:</strong>
-                    <ul>
-                      {movie.Ratings.map((rating, index) => (
-                        <li key={index}>
-                          {rating.Source}: {rating.Value}
-                        </li>
-                      ))}
-                    </ul>
+                <div className="mb-5 flex flex-wrap items-center gap-2 md:gap-3">
+                  <span className="rounded-full bg-red-600 px-4 py-2 text-sm font-medium text-white shadow-lg">
+                    {movie.Year}
+                  </span>
+                  <span className="rounded-full bg-zinc-800/90 px-4 py-2 text-sm font-light text-gray-200">
+                    {movie.Rated}
+                  </span>
+                  <span className="rounded-full bg-zinc-800/90 px-4 py-2 text-sm font-light text-gray-200">
+                    {movie.Runtime}
+                  </span>
+                </div>
+                
+                {movie.Genre && (
+                  <div className="mb-6 flex flex-wrap gap-2">
+                    {movie.Genre.split(', ').map((genre) => (
+                      <span 
+                        key={genre}
+                        className="rounded-full border border-red-600/20 bg-red-600/10 px-4 py-1.5 text-sm font-light text-red-300"
+                      >
+                        {genre}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                
+                {movie.Plot && movie.Plot !== 'N/A' && (
+                  <div className="mt-6">
+                    <h3 className="mb-2 text-sm font-semibold uppercase tracking-wider text-red-500">Plot</h3>
+                    <p className="text-base font-light leading-relaxed text-gray-300">{movie.Plot}</p>
                   </div>
                 )}
               </div>
+            </div>
+            
+            <div className="space-y-6 bg-gradient-to-b from-black to-zinc-950 px-6 py-6 md:space-y-8 md:px-10 md:py-8">
+              <div className="grid gap-4 sm:grid-cols-2 md:gap-5">
+                {movie.Director && movie.Director !== 'N/A' && (
+                  <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/50 p-5">
+                    <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-red-500">Director</h3>
+                    <p className="font-light text-white">{movie.Director}</p>
+                  </div>
+                )}
+                
+                {movie.Writer && movie.Writer !== 'N/A' && (
+                  <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/50 p-5">
+                    <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-red-500">Writer</h3>
+                    <p className="font-light text-white">{movie.Writer}</p>
+                  </div>
+                )}
+              </div>
+              
+              {movie.Actors && movie.Actors !== 'N/A' && (
+                <div className="rounded-xl border border-zinc-800/50 bg-zinc-900/50 p-5">
+                  <h3 className="mb-2 text-xs font-medium uppercase tracking-wider text-red-500">Cast</h3>
+                  <p className="font-light leading-relaxed text-white">{movie.Actors}</p>
+                </div>
+              )}
+              
+              {movie.Ratings && movie.Ratings.length > 0 && (
+                <div>
+                  <h3 className="mb-4 text-sm font-semibold uppercase tracking-wider text-red-500">Ratings</h3>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {movie.Ratings.map((rating, index) => (
+                      <div 
+                        key={index}
+                        className="rounded-xl border border-zinc-800/40 bg-zinc-900/50 p-5 text-center transition-[border-color] duration-200 hover:border-red-600/30"
+                      >
+                        <div className="mb-2 text-3xl">{getRatingIcon(rating.Source)}</div>
+                        <div className="mb-1 text-xl font-bold text-white">{rating.Value}</div>
+                        <div className="text-xs font-light uppercase tracking-wider text-gray-500">{rating.Source}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {movie.Awards && movie.Awards !== 'N/A' && (
+                <div className="rounded-xl border border-yellow-600/20 bg-gradient-to-r from-yellow-900/10 to-orange-900/10 p-5">
+                  <h3 className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-yellow-400">
+                    <span className="text-lg">🏆</span>
+                    <span>Awards</span>
+                  </h3>
+                  <p className="font-light leading-relaxed text-yellow-100/80">{movie.Awards}</p>
+                </div>
+              )}
             </div>
           </div>
         )}

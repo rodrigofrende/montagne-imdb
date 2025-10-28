@@ -1,19 +1,50 @@
-// API_KEY is stored in the .env file for security reasons 😉
 const API_KEY = import.meta.env.VITE_OMDB_API_KEY;
 const BASE_URL = 'https://www.omdbapi.com/';
+const RESULTS_PER_PAGE = 12;
 
-export const searchMovies = async (searchTerm, page = 1) => {
+export const searchMovies = async (searchTerm, virtualPage = 1) => {
   try {
-    const response = await fetch(
-      `${BASE_URL}?apikey=${API_KEY}&s=${searchTerm}&page=${page}`
-    );
-    const data = await response.json();
+    const startIndex = (virtualPage - 1) * RESULTS_PER_PAGE;
+    const firstApiPage = Math.floor(startIndex / 10) + 1;
+    const secondApiPage = firstApiPage + 1;
+    const offsetInFirstPage = startIndex % 10;
     
-    if (data.Response === 'False') {
-      throw new Error(data.Error);
+    const firstResponse = await fetch(
+      `${BASE_URL}?apikey=${API_KEY}&s=${searchTerm}&page=${firstApiPage}`
+    );
+    const firstData = await firstResponse.json();
+    
+    if (firstData.Response === 'False') {
+      throw new Error(firstData.Error);
     }
     
-    return data;
+    let allMovies = firstData.Search || [];
+    const totalResults = parseInt(firstData.totalResults) || 0;
+    
+    const moviesFromFirstPage = allMovies.slice(offsetInFirstPage);
+    const moviesNeeded = RESULTS_PER_PAGE - moviesFromFirstPage.length;
+    
+    if (moviesNeeded > 0 && secondApiPage <= Math.ceil(totalResults / 10)) {
+      const secondResponse = await fetch(
+        `${BASE_URL}?apikey=${API_KEY}&s=${searchTerm}&page=${secondApiPage}`
+      );
+      const secondData = await secondResponse.json();
+      
+      if (secondData.Response === 'True' && secondData.Search) {
+        const moviesFromSecondPage = secondData.Search.slice(0, moviesNeeded);
+        allMovies = [...moviesFromFirstPage, ...moviesFromSecondPage];
+      } else {
+        allMovies = moviesFromFirstPage;
+      }
+    } else {
+      allMovies = moviesFromFirstPage;
+    }
+    
+    return {
+      Search: allMovies,
+      totalResults: totalResults.toString(),
+      Response: 'True'
+    };
   } catch (error) {
     throw error;
   }
