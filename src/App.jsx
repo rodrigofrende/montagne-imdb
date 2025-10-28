@@ -62,6 +62,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const [internalSearchTerm, setInternalSearchTerm] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
@@ -82,6 +83,7 @@ function App() {
         setLoading(true);
         setError(null);
         setCurrentCollection(randomCollection.name);
+        setInternalSearchTerm(randomTerm);
         
         const data = await searchMovies(randomTerm, 1);
         setMovies(data.Search || []);
@@ -99,21 +101,10 @@ function App() {
     fetchInitialMovies();
   }, []);
 
-  const handleSearch = async (term, page = 1) => {
+  const fetchMoviesInternal = async (term, page) => {
     try {
       setLoading(true);
       setError(null);
-      setSearchTerm(term);
-      setHasSearched(true);
-      setIsInitialLoad(false); // No longer initial load after first search
-      
-      if (page === 1) {
-        const trimmedTerm = term.trim();
-        setRecentSearches(prev => {
-          const filtered = prev.filter(s => s.toLowerCase() !== trimmedTerm.toLowerCase());
-          return [trimmedTerm, ...filtered].slice(0, 5); // Keep max 5 recent searches
-        });
-      }
       
       const data = await searchMovies(term, page);
       setMovies(data.Search || []);
@@ -128,8 +119,25 @@ function App() {
     }
   };
 
+  const handleSearch = async (term, page = 1) => {
+    setSearchTerm(term);
+    setInternalSearchTerm(term);
+    setHasSearched(true);
+    setIsInitialLoad(false);
+    
+    if (page === 1) {
+      const trimmedTerm = term.trim();
+      setRecentSearches(prev => {
+        const filtered = prev.filter(s => s.toLowerCase() !== trimmedTerm.toLowerCase());
+        return [trimmedTerm, ...filtered].slice(0, 5);
+      });
+    }
+    
+    await fetchMoviesInternal(term, page);
+  };
+
   const handlePageChange = (newPage) => {
-    handleSearch(searchTerm, newPage);
+    fetchMoviesInternal(internalSearchTerm, newPage);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -169,7 +177,8 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      setSearchTerm(''); 
+      setSearchTerm('');
+      setInternalSearchTerm(randomTerm);
       setHasSearched(false);
       setIsInitialLoad(false);
       setCurrentCollection(randomCollection.name);
@@ -189,9 +198,35 @@ function App() {
     }
   };
 
-  const handleClearSearch = () => {
-    setSearchTerm('');
-    setHasSearched(false);
+  const handleClearSearch = async () => {
+    let randomCollection;
+    do {
+      randomCollection = MOVIE_COLLECTIONS[Math.floor(Math.random() * MOVIE_COLLECTIONS.length)];
+    } while (randomCollection.name === currentCollection && MOVIE_COLLECTIONS.length > 1);
+    
+    const randomTerm = randomCollection.terms[Math.floor(Math.random() * randomCollection.terms.length)];
+    
+    try {
+      setLoading(true);
+      setError(null);
+      setSearchTerm('');
+      setInternalSearchTerm(randomTerm);
+      setHasSearched(false);
+      setCurrentCollection(randomCollection.name);
+      setCurrentPage(1);
+      
+      const data = await searchMovies(randomTerm, 1);
+      setMovies(data.Search || []);
+      setTotalResults(parseInt(data.totalResults) || 0);
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      setError(err.message);
+      setMovies([]);
+      setTotalResults(0);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClearRecentSearches = () => {
@@ -310,7 +345,7 @@ function App() {
                     )}
                   </p>
                   <p className="text-xs text-gray-500">
-                    Page {currentPage} of {Math.ceil(totalResults / 10)}
+                    Page {currentPage} of {Math.ceil(totalResults / 12)}
                   </p>
                 </div>
               )}
