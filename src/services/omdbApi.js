@@ -15,6 +15,10 @@ export const searchMovies = async (searchTerm, virtualPage = 1) => {
     const firstData = await firstResponse.json();
     
     if (firstData.Response === 'False') {
+      // Customize error messages for better UX
+      if (firstData.Error === 'Too many results.') {
+        throw new Error(`Your search "${searchTerm}" is too broad. Please be more specific (e.g., add year, full title, or more keywords).`);
+      }
       throw new Error(firstData.Error);
     }
     

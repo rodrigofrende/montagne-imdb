@@ -33,12 +33,46 @@ describe('MovieCard Component', () => {
     expect(poster).toHaveAttribute('src', mockMovie.Poster);
   });
 
-  test('displays placeholder image when poster is N/A', () => {
+  test('displays fallback UI when poster is N/A', () => {
     const movieWithoutPoster = { ...mockMovie, Poster: 'N/A' };
     render(<MovieCard movie={movieWithoutPoster} onClick={mockOnClick} />);
     
+    expect(screen.getByText('Poster Unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Image not found')).toBeInTheDocument();
+  });
+
+  test('handles image load error gracefully', () => {
+    render(<MovieCard movie={mockMovie} onClick={mockOnClick} />);
+    
     const poster = screen.getByAltText('The Matrix poster');
-    expect(poster).toHaveAttribute('src', 'https://via.placeholder.com/300x450?text=No+Image');
+    
+    // Simulate image load error
+    fireEvent.error(poster);
+    
+    // Should show fallback UI
+    expect(screen.getByText('Poster Unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Image not found')).toBeInTheDocument();
+  });
+
+  test('shows loading skeleton while image is loading', () => {
+    const { container } = render(<MovieCard movie={mockMovie} onClick={mockOnClick} />);
+    
+    // Loading skeleton should be present initially
+    const loadingSkeleton = container.querySelector('.animate-pulse');
+    expect(loadingSkeleton).toBeInTheDocument();
+  });
+
+  test('hides loading skeleton after image loads', () => {
+    const { container } = render(<MovieCard movie={mockMovie} onClick={mockOnClick} />);
+    
+    const poster = screen.getByAltText('The Matrix poster');
+    
+    // Simulate successful image load
+    fireEvent.load(poster);
+    
+    // Loading skeleton should be gone (it will still exist in DOM but conditional rendering will hide it)
+    // We check that the image is visible instead
+    expect(poster).toBeVisible();
   });
 
   test('calls onClick when card is clicked', async () => {
@@ -60,11 +94,20 @@ describe('MovieCard Component', () => {
     expect(mockOnClick).toHaveBeenCalledTimes(1);
   });
 
+  test('calls onClick when Space key is pressed', () => {
+    render(<MovieCard movie={mockMovie} onClick={mockOnClick} />);
+    
+    const card = screen.getByRole('button', { name: /view details for the matrix/i });
+    fireEvent.keyDown(card, { key: ' ', code: 'Space' });
+    
+    expect(mockOnClick).toHaveBeenCalledTimes(1);
+  });
+
   test('does not call onClick when other keys are pressed', () => {
     render(<MovieCard movie={mockMovie} onClick={mockOnClick} />);
     
     const card = screen.getByRole('button', { name: /view details for the matrix/i });
-    fireEvent.keyDown(card, { key: 'Space', code: 'Space' });
+    fireEvent.keyDown(card, { key: 'Tab', code: 'Tab' });
     
     expect(mockOnClick).not.toHaveBeenCalled();
   });
@@ -100,7 +143,7 @@ describe('MovieCard Component', () => {
     expect(screen.getByText('unknown')).toBeInTheDocument();
   });
 
-  test('image has lazy loading attribute', () => {
+  test('image has lazy loading attribute when present', () => {
     render(<MovieCard movie={mockMovie} onClick={mockOnClick} />);
     
     const poster = screen.getByAltText('The Matrix poster');

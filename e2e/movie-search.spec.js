@@ -180,11 +180,9 @@ test.describe('DevMovies E2E Tests', () => {
     // Wait for results
     await page.waitForSelector('article[role="button"]', { timeout: 10000 });
     
-    // Tab to first movie card
-    await page.keyboard.press('Tab');
-    await page.keyboard.press('Tab');
-    
-    // Press Enter to open modal
+    // Focus first movie card and press Enter
+    const firstMovieCard = page.locator('article[role="button"]').first();
+    await firstMovieCard.focus();
     await page.keyboard.press('Enter');
     
     // Modal should open
@@ -213,14 +211,16 @@ test.describe('DevMovies E2E Tests', () => {
     const searchInput = page.getByPlaceholder(/search movies by title/i);
     const searchButton = page.getByRole('button', { name: /search button/i });
     
-    // Try to search with only 1 character (should be prevented by HTML5 validation)
-    await searchInput.fill('A');
-    await searchButton.click();
+    // With no input, button should be disabled
+    await expect(searchButton).toBeDisabled();
     
-    // HTML5 validation should prevent the form submission
-    // Check if we're still on the same page without results
-    const movieCards = page.locator('article[role="button"]');
-    await expect(movieCards).toHaveCount(0);
+    // With only 1 character, button should still be disabled
+    await searchInput.fill('A');
+    await expect(searchButton).toBeDisabled();
+    
+    // With 2 or more characters, button should be enabled
+    await searchInput.fill('AB');
+    await expect(searchButton).toBeEnabled();
   });
 
   test('should display loading state during search', async ({ page }) => {
