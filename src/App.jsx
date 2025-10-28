@@ -13,6 +13,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
+  const [hasSearched, setHasSearched] = useState(false);
   const hasFetchedRef = useRef(false);
 
   useEffect(() => {
@@ -49,6 +50,7 @@ function App() {
       setLoading(true);
       setError(null);
       setSearchTerm(term);
+      setHasSearched(true);
       
       const data = await searchMovies(term, page);
       setMovies(data.Search || []);
@@ -65,6 +67,7 @@ function App() {
 
   const handlePageChange = (newPage) => {
     handleSearch(searchTerm, newPage);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleMovieClick = (imdbID) => {
@@ -75,24 +78,53 @@ function App() {
     setSelectedMovieId(null);
   };
 
+  const handleLogoClick = async () => {
+    const randomTerms = ['action', 'love', 'war', 'star', 'life', 'time', 'hero', 'dark', 'night', 'dream'];
+    const randomTerm = randomTerms[Math.floor(Math.random() * randomTerms.length)];
+    
+    try {
+      setLoading(true);
+      setError(null);
+      setSearchTerm(randomTerm);
+      setHasSearched(false);
+      setCurrentPage(1);
+      
+      const data = await searchMovies(randomTerm, 1);
+      setMovies(data.Search || []);
+      setTotalResults(parseInt(data.totalResults) || 0);
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      setError(err.message);
+      setMovies([]);
+      setTotalResults(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black">
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
       
       <div className="relative z-10">
-        <header className="sticky top-0 z-50 border-b border-red-600/10 bg-black/80 shadow-lg shadow-black/50 backdrop-blur-md">
+        <header className="sticky top-0 z-50 border-b border-red-600/10 bg-black/95 shadow-lg">
           <div className="mx-auto w-full max-w-7xl px-6 py-4 md:px-12 md:py-5">
-            <div className="flex items-center justify-center gap-3">
+            <button 
+              onClick={handleLogoClick}
+              className="mx-auto flex items-center justify-center gap-3 transition-[transform,opacity] duration-200 ease-out hover:scale-105 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:ring-offset-2 focus:ring-offset-black rounded-lg px-4 py-2"
+              aria-label="Go to home and load new recommendations"
+            >
               <span className="text-2xl md:text-3xl">🎬</span>
               <h1 className="text-2xl font-bold tracking-tight text-white md:text-3xl">
                 <span className="text-red-600">Dev</span>Movies
               </h1>
-            </div>
+            </button>
           </div>
         </header>
         
         <main className="mx-auto w-full max-w-[1400px] px-6 py-8 md:px-12 md:py-10">
-          <SearchBar onSearch={handleSearch} />
+          <SearchBar onSearch={handleSearch} hasSearched={hasSearched} />
           
           {loading && (
             <div className="flex flex-col items-center justify-center space-y-4 p-12">
@@ -105,7 +137,7 @@ function App() {
           )}
           
           {error && (
-            <div className="mx-auto mt-8 max-w-md rounded-xl border border-red-600/50 bg-red-600/10 p-6 backdrop-blur-sm">
+            <div className="mx-auto mt-8 max-w-md rounded-xl border border-red-600/50 bg-red-600/10 p-6">
               <p className="flex items-center justify-center gap-2 text-center text-red-400">
                 <span className="text-2xl">⚠️</span>
                 <span>{error}</span>
@@ -125,7 +157,7 @@ function App() {
           )}
           
           {!loading && !error && movies.length === 0 && searchTerm && (
-            <div className="mx-auto mt-16 max-w-md rounded-2xl border border-red-600/10 bg-zinc-900/50 p-10 text-center shadow-xl backdrop-blur-sm">
+            <div className="mx-auto mt-16 max-w-md rounded-2xl border border-red-600/10 bg-zinc-900/80 p-10 text-center shadow-lg">
               <p className="mb-6 text-6xl">🔍</p>
               <p className="text-xl font-medium text-white">No movies found</p>
               <p className="mt-3 text-sm text-gray-400">Try searching with different keywords</p>
@@ -134,7 +166,7 @@ function App() {
         </main>
         
         <footer className="mt-20 border-t border-zinc-800/50 py-10 text-center text-sm text-gray-600">
-          <p className="font-light">Powered by OMDb API • Built with React & Tailwind CSS</p>
+          <p className="font-light">Powered by OMDb API • Coded by <a href="https://github.com/rodrigofrende" target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">Rodrigo Frende</a></p>
         </footer>
       </div>
       
