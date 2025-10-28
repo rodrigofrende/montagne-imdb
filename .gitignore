@@ -37,3 +37,9 @@ playwright/.cache
 
 # OS
 Thumbs.db
+
+# Screenshots - Allow screenshots folder for README
+# But ignore generated PNGs in other locations
+*.png
+!screenshots/*.png
+!public/*.png

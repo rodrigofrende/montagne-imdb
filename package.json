@@ -13,7 +13,11 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
-    "test:all": "npm run test && npm run test:e2e"
+    "test:all": "npm run test && npm run test:e2e",
+    "screenshots": "node scripts/capture-screenshots.js",
+    "screenshots:prod": "VITE_APP_URL=https://montagne-imdb.vercel.app node scripts/capture-screenshots.js",
+    "screenshots:update-readme": "node scripts/update-readme-screenshots.js",
+    "screenshots:all": "npm run screenshots && npm run screenshots:update-readme"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.28.5",
