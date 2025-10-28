@@ -42,7 +42,8 @@ async function captureScreenshots() {
     await desktopPage.waitForTimeout(DELAY_MS);
     await desktopPage.screenshot({ 
       path: join(SCREENSHOTS_DIR, '01-homepage-desktop.png'),
-      fullPage: true 
+      fullPage: false,
+      clip: { x: 0, y: 0, width: 1920, height: 1080 }
     });
     console.log('  ✅ Homepage (desktop)');
 
@@ -52,7 +53,8 @@ async function captureScreenshots() {
     await desktopPage.waitForTimeout(DELAY_MS);
     await desktopPage.screenshot({ 
       path: join(SCREENSHOTS_DIR, '02-search-results-desktop.png'),
-      fullPage: true 
+      fullPage: false,
+      clip: { x: 0, y: 0, width: 1920, height: 1080 }
     });
     console.log('  ✅ Search results (desktop)');
 
@@ -101,7 +103,8 @@ async function captureScreenshots() {
     await mobilePage.waitForTimeout(DELAY_MS);
     await mobilePage.screenshot({ 
       path: join(SCREENSHOTS_DIR, '06-homepage-mobile.png'),
-      fullPage: true 
+      fullPage: false,
+      clip: { x: 0, y: 0, width: 375, height: 812 }
     });
     console.log('  ✅ Homepage (mobile)');
 
@@ -111,7 +114,8 @@ async function captureScreenshots() {
     await mobilePage.waitForTimeout(DELAY_MS);
     await mobilePage.screenshot({ 
       path: join(SCREENSHOTS_DIR, '07-search-results-mobile.png'),
-      fullPage: true 
+      fullPage: false,
+      clip: { x: 0, y: 0, width: 375, height: 812 }
     });
     console.log('  ✅ Search results (mobile)');
 
@@ -121,7 +125,8 @@ async function captureScreenshots() {
     await mobilePage.waitForTimeout(DELAY_MS);
     await mobilePage.screenshot({ 
       path: join(SCREENSHOTS_DIR, '08-movie-modal-mobile.png'),
-      fullPage: true 
+      fullPage: false,
+      clip: { x: 0, y: 0, width: 375, height: 812 }
     });
     console.log('  ✅ Movie modal (mobile)');
 
@@ -139,7 +144,8 @@ async function captureScreenshots() {
     await errorPage.waitForTimeout(DELAY_MS);
     await errorPage.screenshot({ 
       path: join(SCREENSHOTS_DIR, '09-error-state-desktop.png'),
-      fullPage: true 
+      fullPage: false,
+      clip: { x: 0, y: 0, width: 1920, height: 1080 }
     });
     console.log('  ✅ Error state (desktop)');
 
