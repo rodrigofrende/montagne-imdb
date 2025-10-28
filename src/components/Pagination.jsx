@@ -6,7 +6,7 @@ function Pagination({ currentPage, totalResults, onPageChange }) {
 
   const getPageNumbers = () => {
     const pages = [];
-    const maxVisible = window.innerWidth < 640 ? 3 : 5; // Menos páginas en mobile
+    const maxVisible = window.innerWidth < 640 ? 3 : 5;
     
     if (totalPages <= maxVisible) {
       for (let i = 1; i <= totalPages; i++) {
@@ -14,7 +14,6 @@ function Pagination({ currentPage, totalResults, onPageChange }) {
       }
     } else {
       if (window.innerWidth < 640) {
-        // Mobile: mostrar solo página actual y vecinas
         if (currentPage <= 2) {
           pages.push(1, 2, 3, '...', totalPages);
         } else if (currentPage >= totalPages - 1) {
@@ -23,7 +22,6 @@ function Pagination({ currentPage, totalResults, onPageChange }) {
           pages.push(1, '...', currentPage, '...', totalPages);
         }
       } else {
-        // Desktop: mostrar más páginas
         if (currentPage <= 3) {
           pages.push(1, 2, 3, 4, '...', totalPages);
         } else if (currentPage >= totalPages - 2) {
@@ -42,7 +40,6 @@ function Pagination({ currentPage, totalResults, onPageChange }) {
       className="py-8 md:py-12 px-4"
       aria-label="Pagination navigation"
     >
-      {/* Info de página - Arriba en mobile */}
       <div className="text-center mb-4 md:hidden">
         <p className="text-gray-500 text-xs font-light">
           Page <span className="text-white font-medium">{currentPage}</span> of <span className="text-white font-medium">{totalPages}</span>
@@ -51,7 +48,6 @@ function Pagination({ currentPage, totalResults, onPageChange }) {
         </p>
       </div>
 
-      {/* Controles de paginación */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4">
         <button
           onClick={() => onPageChange(currentPage - 1)}
@@ -96,7 +92,6 @@ function Pagination({ currentPage, totalResults, onPageChange }) {
         </button>
       </div>
 
-      {/* Info de página - Abajo en desktop */}
       <div className="hidden md:block text-center mt-6">
         <p className="text-gray-500 text-sm font-light">
           Showing page <span className="text-white font-medium">{currentPage}</span> of <span className="text-white font-medium">{totalPages}</span> 
