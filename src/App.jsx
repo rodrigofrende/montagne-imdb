@@ -6,7 +6,6 @@ import Pagination from './components/Pagination';
 import { searchMovies } from './services/omdbApi';
 import { useLocalStorage } from './hooks';
 
-// Cinematic loading messages
 const LOADING_MESSAGES = [
   "🎬 Preparing the red carpet...",
   "🎥 Rolling the cameras...",
@@ -20,7 +19,6 @@ const LOADING_MESSAGES = [
   "🎨 Painting the scenes...",
 ];
 
-// Curated movie collections for better initial experience
 const MOVIE_COLLECTIONS = [
   {
     name: "Sci-Fi Classics",
@@ -70,14 +68,12 @@ function App() {
   const [currentCollection, setCurrentCollection] = useState(null);
   const hasFetchedRef = useRef(false);
   
-  // Custom hook: Save recent searches in localStorage
   const [recentSearches, setRecentSearches] = useLocalStorage('devmovies-recent-searches', []);
 
   useEffect(() => {
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
-    // Pick a random collection
     const randomCollection = MOVIE_COLLECTIONS[Math.floor(Math.random() * MOVIE_COLLECTIONS.length)];
     const randomTerm = randomCollection.terms[Math.floor(Math.random() * randomCollection.terms.length)];
     
@@ -86,7 +82,6 @@ function App() {
         setLoading(true);
         setError(null);
         setCurrentCollection(randomCollection.name);
-        // Don't set searchTerm for random movies - keep input clean
         
         const data = await searchMovies(randomTerm, 1);
         setMovies(data.Search || []);
@@ -112,7 +107,6 @@ function App() {
       setHasSearched(true);
       setIsInitialLoad(false); // No longer initial load after first search
       
-      // Save to recent searches (only on page 1, avoid duplicates)
       if (page === 1) {
         const trimmedTerm = term.trim();
         setRecentSearches(prev => {
@@ -147,15 +141,12 @@ function App() {
     setSelectedMovieId(null);
   };
 
-  // Rotate loading messages while loading
   useEffect(() => {
     if (!loading) return;
     
-    // Set initial random message
     const randomIndex = Math.floor(Math.random() * LOADING_MESSAGES.length);
     setLoadingMessage(LOADING_MESSAGES[randomIndex]);
     
-    // Rotate messages every 1.5 seconds while loading
     const interval = setInterval(() => {
       setLoadingMessage(prev => {
         const currentIndex = LOADING_MESSAGES.indexOf(prev);
@@ -168,7 +159,6 @@ function App() {
   }, [loading]);
 
   const handleLogoClick = async () => {
-    // Pick a random collection different from the current one
     let randomCollection;
     do {
       randomCollection = MOVIE_COLLECTIONS[Math.floor(Math.random() * MOVIE_COLLECTIONS.length)];
@@ -179,9 +169,9 @@ function App() {
     try {
       setLoading(true);
       setError(null);
-      setSearchTerm(''); // Clear search term to reset the SearchBar
+      setSearchTerm(''); 
       setHasSearched(false);
-      setIsInitialLoad(false); // Not initial load anymore
+      setIsInitialLoad(false);
       setCurrentCollection(randomCollection.name);
       setCurrentPage(1);
       
@@ -291,7 +281,6 @@ function App() {
           
           {!loading && !error && movies.length > 0 && (
             <>
-              {/* Netflix-style collection banner - shows category */}
               {!hasSearched && currentCollection && (
                 <div className="mb-6 rounded-xl border border-red-600/20 bg-gradient-to-r from-red-600/10 via-red-600/5 to-transparent px-6 py-4 animate-fade-in">
                   <div className="flex items-center gap-3">
@@ -310,7 +299,6 @@ function App() {
                 </div>
               )}
               
-              {/* Results counter - only shown after user search */}
               {hasSearched && (
                 <div className="mb-6 flex items-center justify-between rounded-xl border border-red-600/10 bg-zinc-900/50 px-4 py-3 animate-fade-in">
                   <p className="text-sm text-gray-400">
