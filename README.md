@@ -102,9 +102,19 @@ montagne-imdb/
 
 ## 📦 Available Scripts
 
+### Development
 - `npm run dev` - Start development server
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
+
+### Testing
+- `npm test` - Run unit tests with Jest
+- `npm run test:watch` - Run unit tests in watch mode
+- `npm run test:coverage` - Generate test coverage report
+- `npm run test:e2e` - Run E2E tests with Playwright
+- `npm run test:e2e:ui` - Run E2E tests with Playwright UI
+- `npm run test:e2e:headed` - Run E2E tests in headed mode (visible browser)
+- `npm run test:all` - Run all tests (unit + E2E)
 
 ## 🌟 Features Breakdown
 
@@ -138,12 +148,126 @@ montagne-imdb/
 - Total results counter
 - Disabled states
 
+## 🧪 Testing
+
+This project includes comprehensive testing coverage with both unit and E2E tests.
+
+### Unit Testing
+
+**Framework:** Jest + React Testing Library
+
+Unit tests cover all major components and services:
+- ✅ **SearchBar** - Input validation, form submission, focus states
+- ✅ **MovieCard** - Rendering, interactions, accessibility
+- ✅ **Pagination** - Page navigation, disabled states, responsive behavior
+- ✅ **omdbApi Service** - API calls, error handling, pagination logic
+
+**Running Unit Tests:**
+```bash
+# Run all unit tests
+npm test
+
+# Run in watch mode (auto-rerun on changes)
+npm run test:watch
+
+# Generate coverage report
+npm run test:coverage
+```
+
+**Coverage Goals:**
+- Branches: 70%
+- Functions: 70%
+- Lines: 70%
+- Statements: 70%
+
+### E2E Testing
+
+**Framework:** Playwright
+
+End-to-end tests validate complete user workflows:
+- ✅ Homepage loading and initial state
+- ✅ Movie search functionality
+- ✅ Results display and pagination
+- ✅ Movie modal interaction
+- ✅ Keyboard navigation
+- ✅ Error handling
+- ✅ Responsive design (mobile/desktop)
+- ✅ Form validation
+
+**Running E2E Tests:**
+```bash
+# Run E2E tests (headless)
+npm run test:e2e
+
+# Run with UI mode (recommended for development)
+npm run test:e2e:ui
+
+# Run with visible browser
+npm run test:e2e:headed
+
+# Run all tests
+npm run test:all
+```
+
+### Test Structure
+
+```
+montagne-imdb/
+├── src/
+│   ├── components/
+│   │   ├── __tests__/
+│   │   │   ├── SearchBar.test.jsx
+│   │   │   ├── MovieCard.test.jsx
+│   │   │   └── Pagination.test.jsx
+│   ├── services/
+│   │   └── __tests__/
+│   │       └── omdbApi.test.js
+├── e2e/
+│   └── movie-search.spec.js
+├── jest.config.js
+├── jest.setup.js
+└── playwright.config.js
+```
+
+### Writing New Tests
+
+**Unit Test Example:**
+```javascript
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import MyComponent from '../MyComponent';
+
+test('should do something', async () => {
+  const user = userEvent.setup();
+  render(<MyComponent />);
+  
+  const button = screen.getByRole('button');
+  await user.click(button);
+  
+  expect(screen.getByText('Success')).toBeInTheDocument();
+});
+```
+
+**E2E Test Example:**
+```javascript
+import { test, expect } from '@playwright/test';
+
+test('should perform action', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button').click();
+  await expect(page.getByText('Success')).toBeVisible();
+});
+```
+
 ## 👏 Acknowledgments
 
 - [OMDb API](https://www.omdbapi.com/) for providing movie data
 - [Tailwind CSS](https://tailwindcss.com/) for the utility-first CSS framework
 - [Vite](https://vitejs.dev/) for the blazing fast build tool
 - [React](https://react.dev/) for the amazing UI library
+- [Jest](https://jestjs.io/) for the delightful JavaScript testing framework
+- [React Testing Library](https://testing-library.com/react) for simple and complete testing utilities
+- [Playwright](https://playwright.dev/) for reliable end-to-end testing
 
 
 
