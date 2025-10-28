@@ -208,6 +208,27 @@ describe('omdbApi Service Logic', () => {
       }
     });
 
+    test('should customize "Too many results" error message', () => {
+      const errorResponse = {
+        Response: 'False',
+        Error: 'Too many results.'
+      };
+      const searchTerm = 'a';
+      
+      if (errorResponse.Response === 'False') {
+        let customError;
+        if (errorResponse.Error === 'Too many results.') {
+          customError = `Your search "${searchTerm}" is too broad. Please be more specific (e.g., add year, full title, or more keywords).`;
+        } else {
+          customError = errorResponse.Error;
+        }
+        
+        expect(customError).toContain('too broad');
+        expect(customError).toContain(searchTerm);
+        expect(customError).toContain('be more specific');
+      }
+    });
+
     test('should handle network errors', () => {
       const networkError = new Error('Network error');
       

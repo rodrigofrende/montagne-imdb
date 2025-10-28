@@ -4,6 +4,57 @@ import MovieGrid from './components/MovieGrid';
 import MovieModal from './components/MovieModal';
 import Pagination from './components/Pagination';
 import { searchMovies } from './services/omdbApi';
+import { useLocalStorage } from './hooks';
+
+// Cinematic loading messages
+const LOADING_MESSAGES = [
+  "🎬 Preparing the red carpet...",
+  "🎥 Rolling the cameras...",
+  "🍿 Popping fresh popcorn...",
+  "🎭 Opening the curtains...",
+  "🎞️ Loading the reels...",
+  "✨ Adding movie magic...",
+  "🎪 Setting up the premiere...",
+  "🌟 Spotlighting the stars...",
+  "📽️ Adjusting the projector...",
+  "🎨 Painting the scenes...",
+];
+
+// Curated movie collections for better initial experience
+const MOVIE_COLLECTIONS = [
+  {
+    name: "Sci-Fi Classics",
+    terms: ["Matrix", "Blade Runner", "Alien", "Terminator", "Star Wars"]
+  },
+  {
+    name: "Action Heroes",
+    terms: ["Die Hard", "John Wick", "Mad Max", "Bourne", "Mission Impossible"]
+  },
+  {
+    name: "Epic Adventures",
+    terms: ["Lord of the Rings", "Pirates Caribbean", "Indiana Jones", "Jurassic"]
+  },
+  {
+    name: "Comic Book Universe",
+    terms: ["Avengers", "Batman", "Spider-Man", "Iron Man", "Superman"]
+  },
+  {
+    name: "Modern Thrillers",
+    terms: ["Inception", "Interstellar", "Shutter Island", "Prestige", "Memento"]
+  },
+  {
+    name: "Animated Favorites",
+    terms: ["Toy Story", "Shrek", "Finding Nemo", "Lion King", "Frozen"]
+  },
+  {
+    name: "Horror Classics",
+    terms: ["Conjuring", "Insidious", "Exorcist", "Shining", "Nightmare"]
+  },
+  {
+    name: "Comedy Gems",
+    terms: ["Hangover", "Superbad", "Bridesmaids", "Anchorman", "Step Brothers"]
+  }
+];
 
 function App() {
   const [movies, setMovies] = useState([]);
@@ -14,20 +65,28 @@ function App() {
   const [totalResults, setTotalResults] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState(LOADING_MESSAGES[0]);
+  const [currentCollection, setCurrentCollection] = useState(null);
   const hasFetchedRef = useRef(false);
+  
+  // Custom hook: Save recent searches in localStorage
+  const [recentSearches, setRecentSearches] = useLocalStorage('devmovies-recent-searches', []);
 
   useEffect(() => {
     if (hasFetchedRef.current) return;
     hasFetchedRef.current = true;
 
-    const randomTerms = ['action', 'love', 'war', 'star', 'life', 'time', 'hero'];
-    const randomTerm = randomTerms[Math.floor(Math.random() * randomTerms.length)];
+    // Pick a random collection
+    const randomCollection = MOVIE_COLLECTIONS[Math.floor(Math.random() * MOVIE_COLLECTIONS.length)];
+    const randomTerm = randomCollection.terms[Math.floor(Math.random() * randomCollection.terms.length)];
     
     const fetchInitialMovies = async () => {
       try {
         setLoading(true);
         setError(null);
-        setSearchTerm(randomTerm);
+        setCurrentCollection(randomCollection.name);
+        // Don't set searchTerm for random movies - keep input clean
         
         const data = await searchMovies(randomTerm, 1);
         setMovies(data.Search || []);
@@ -51,6 +110,16 @@ function App() {
       setError(null);
       setSearchTerm(term);
       setHasSearched(true);
+      setIsInitialLoad(false); // No longer initial load after first search
+      
+      // Save to recent searches (only on page 1, avoid duplicates)
+      if (page === 1) {
+        const trimmedTerm = term.trim();
+        setRecentSearches(prev => {
+          const filtered = prev.filter(s => s.toLowerCase() !== trimmedTerm.toLowerCase());
+          return [trimmedTerm, ...filtered].slice(0, 5); // Keep max 5 recent searches
+        });
+      }
       
       const data = await searchMovies(term, page);
       setMovies(data.Search || []);
@@ -78,15 +147,42 @@ function App() {
     setSelectedMovieId(null);
   };
 
+  // Rotate loading messages while loading
+  useEffect(() => {
+    if (!loading) return;
+    
+    // Set initial random message
+    const randomIndex = Math.floor(Math.random() * LOADING_MESSAGES.length);
+    setLoadingMessage(LOADING_MESSAGES[randomIndex]);
+    
+    // Rotate messages every 1.5 seconds while loading
+    const interval = setInterval(() => {
+      setLoadingMessage(prev => {
+        const currentIndex = LOADING_MESSAGES.indexOf(prev);
+        const nextIndex = (currentIndex + 1) % LOADING_MESSAGES.length;
+        return LOADING_MESSAGES[nextIndex];
+      });
+    }, 1500);
+    
+    return () => clearInterval(interval);
+  }, [loading]);
+
   const handleLogoClick = async () => {
-    const randomTerms = ['action', 'love', 'war', 'star', 'life', 'time', 'hero', 'dark', 'night', 'dream'];
-    const randomTerm = randomTerms[Math.floor(Math.random() * randomTerms.length)];
+    // Pick a random collection different from the current one
+    let randomCollection;
+    do {
+      randomCollection = MOVIE_COLLECTIONS[Math.floor(Math.random() * MOVIE_COLLECTIONS.length)];
+    } while (randomCollection.name === currentCollection && MOVIE_COLLECTIONS.length > 1);
+    
+    const randomTerm = randomCollection.terms[Math.floor(Math.random() * randomCollection.terms.length)];
     
     try {
       setLoading(true);
       setError(null);
-      setSearchTerm(randomTerm);
+      setSearchTerm(''); // Clear search term to reset the SearchBar
       setHasSearched(false);
+      setIsInitialLoad(false); // Not initial load anymore
+      setCurrentCollection(randomCollection.name);
       setCurrentPage(1);
       
       const data = await searchMovies(randomTerm, 1);
@@ -103,16 +199,25 @@ function App() {
     }
   };
 
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setHasSearched(false);
+  };
+
+  const handleClearRecentSearches = () => {
+    setRecentSearches([]);
+  };
+
   return (
     <div className="min-h-screen bg-black">
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzFhMWExYSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
       
       <div className="relative z-10">
         <header className="sticky top-0 z-50 border-b border-red-600/10 bg-black/95 shadow-lg">
-          <div className="mx-auto w-full max-w-7xl px-6 py-4 md:px-12 md:py-5">
+          <div className="mx-auto w-full max-w-7xl px-6 py-2 md:px-12 md:py-3">
             <button 
               onClick={handleLogoClick}
-              className="mx-auto flex items-center justify-center gap-3 transition-[transform,opacity] duration-200 ease-out hover:scale-105 hover:opacity-80 focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:ring-offset-2 focus:ring-offset-black rounded-lg px-4 py-2"
+              className="mx-auto flex cursor-pointer items-center justify-center gap-3 transition-[transform,opacity] duration-200 ease-out hover:scale-105 hover:opacity-80 active:scale-95 focus:outline-none focus:ring-2 focus:ring-red-600/50 focus:ring-offset-2 focus:ring-offset-black rounded-lg px-4 py-2"
               aria-label="Go to home and load new recommendations"
             >
               <span className="text-2xl md:text-3xl">🎬</span>
@@ -123,8 +228,15 @@ function App() {
           </div>
         </header>
         
-        <main className="mx-auto w-full max-w-[1400px] px-6 py-8 md:px-12 md:py-10">
-          <SearchBar onSearch={handleSearch} hasSearched={hasSearched} />
+        <main className="mx-auto w-full max-w-[1400px] px-6 py-6 md:px-12 md:py-8">
+          <SearchBar 
+            onSearch={handleSearch} 
+            hasSearched={hasSearched}
+            value={searchTerm}
+            onClear={handleClearSearch}
+            recentSearches={recentSearches}
+            onClearRecent={handleClearRecentSearches}
+          />
           
           {loading && (
             <div className="flex flex-col items-center justify-center space-y-4 p-12">
@@ -132,21 +244,89 @@ function App() {
                 <div className="absolute inset-0 rounded-full border-4 border-red-600/30"></div>
                 <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-red-600"></div>
               </div>
-              <p className="text-lg text-gray-300">Loading amazing movies...</p>
+              <p className="text-lg text-gray-300 animate-pulse-subtle transition-all duration-500" key={loadingMessage}>
+                {loadingMessage}
+              </p>
             </div>
           )}
           
           {error && (
-            <div className="mx-auto mt-8 max-w-md rounded-xl border border-red-600/50 bg-red-600/10 p-6">
-              <p className="flex items-center justify-center gap-2 text-center text-red-400">
-                <span className="text-2xl">⚠️</span>
-                <span>{error}</span>
-              </p>
+            <div className="mx-auto mt-12 max-w-2xl rounded-2xl border border-red-600/30 bg-gradient-to-br from-red-600/10 via-red-600/5 to-transparent p-8 shadow-lg animate-fade-in">
+              <div className="flex flex-col items-center text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-600/20 ring-4 ring-red-600/10">
+                  <span className="text-4xl">⚠️</span>
+                </div>
+                <h3 className="mb-3 text-xl font-semibold text-red-400">Search Error</h3>
+                <p className="text-base leading-relaxed text-gray-300">{error}</p>
+                
+                {/* Show suggestions if it's a "too broad" error */}
+                {error.includes('too broad') && (
+                  <div className="mt-6 w-full rounded-xl border border-zinc-700/50 bg-zinc-900/50 p-4">
+                    <p className="mb-3 text-sm font-medium text-gray-400">💡 Try these examples:</p>
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      <button
+                        onClick={() => handleSearch('Inception 2010')}
+                        className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:bg-red-600/20 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                      >
+                        "Inception 2010"
+                      </button>
+                      <button
+                        onClick={() => handleSearch('The Dark Knight')}
+                        className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:bg-red-600/20 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                      >
+                        "The Dark Knight"
+                      </button>
+                      <button
+                        onClick={() => handleSearch('Avengers Endgame')}
+                        className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:bg-red-600/20 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                      >
+                        "Avengers Endgame"
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
           
           {!loading && !error && movies.length > 0 && (
             <>
+              {/* Netflix-style collection banner - shows category */}
+              {!hasSearched && currentCollection && (
+                <div className="mb-6 rounded-xl border border-red-600/20 bg-gradient-to-r from-red-600/10 via-red-600/5 to-transparent px-6 py-4 animate-fade-in">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">
+                      {isInitialLoad ? '✨' : '🎲'}
+                    </span>
+                    <div>
+                      <h2 className="text-lg font-semibold text-white">
+                        {isInitialLoad ? 'Our Selection for You' : 'Discover More'}
+                      </h2>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {currentCollection}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Results counter - only shown after user search */}
+              {hasSearched && (
+                <div className="mb-6 flex items-center justify-between rounded-xl border border-red-600/10 bg-zinc-900/50 px-4 py-3 animate-fade-in">
+                  <p className="text-sm text-gray-400">
+                    Found <span className="font-semibold text-white">{totalResults.toLocaleString()}</span> {totalResults === 1 ? 'result' : 'results'}
+                    {searchTerm && (
+                      <>
+                        {' '}for <span className="font-medium text-red-500">"{searchTerm}"</span>
+                      </>
+                    )}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Page {currentPage} of {Math.ceil(totalResults / 10)}
+                  </p>
+                </div>
+              )}
+              
               <MovieGrid movies={movies} onMovieClick={handleMovieClick} />
               <Pagination 
                 currentPage={currentPage}
@@ -157,10 +337,13 @@ function App() {
           )}
           
           {!loading && !error && movies.length === 0 && searchTerm && (
-            <div className="mx-auto mt-16 max-w-md rounded-2xl border border-red-600/10 bg-zinc-900/80 p-10 text-center shadow-lg">
-              <p className="mb-6 text-6xl">🔍</p>
+            <div className="mx-auto mt-16 max-w-md rounded-2xl border border-red-600/10 bg-zinc-900/80 p-10 text-center shadow-lg animate-fade-in">
+              <p className="mb-6 text-6xl">🎭</p>
               <p className="text-xl font-medium text-white">No movies found</p>
-              <p className="mt-3 text-sm text-gray-400">Try searching with different keywords</p>
+              <p className="mt-3 text-sm text-gray-400">
+                We couldn't find any movies matching <span className="font-medium text-red-500">"{searchTerm}"</span>
+              </p>
+              <p className="mt-2 text-xs text-gray-500">Try different keywords or check your spelling</p>
             </div>
           )}
         </main>
