@@ -47,19 +47,13 @@ test.describe('DevMovies E2E Tests', () => {
     const searchInput = page.getByPlaceholder(/search movies by title/i);
     const searchButton = page.getByRole('button', { name: /search button/i });
     
-    // Search for something that won't return results
     await searchInput.fill('xyzabc123456nonexistent999');
     await searchButton.click();
     
-    // Wait for loading to finish
     await page.waitForLoadState('networkidle');
     
-    // Should show either error message or no results message
-    const noResults = page.getByText(/no movies found/i);
-    const errorMessage = page.locator('text=/movie not found|too many results|error/i');
-    
-    // Either message should be visible
-    await expect(noResults.or(errorMessage).first()).toBeVisible({ timeout: 10000 });
+    const errorHeading = page.getByRole('heading', { name: /no results found/i });
+    await expect(errorHeading).toBeVisible({ timeout: 10000 });
   });
 
   test('should open movie modal when clicking on a movie card', async ({ page }) => {

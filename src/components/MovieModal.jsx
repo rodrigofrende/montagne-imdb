@@ -1,20 +1,35 @@
-import { useEffect, useState } from 'react';
-import { getMovieDetails } from '../services/omdbApi';
+import { useEffect, useState, useRef } from 'react';
+import { getMovieDetails, ErrorType } from '../services/omdbApi';
+import { useFocusTrap, useAbortController } from '../hooks';
 
 function MovieModal({ imdbID, onClose }) {
   const [movie, setMovie] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [errorType, setErrorType] = useState(null);
+  const closeButtonRef = useRef(null);
+  
+  // Focus trap for accessibility
+  const { trapRef } = useFocusTrap(!!imdbID);
+  
+  // AbortController for cancelling requests
+  const { getSignal, abort } = useAbortController();
 
   useEffect(() => {
     const fetchDetails = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await getMovieDetails(imdbID);
+        setErrorType(null);
+        
+        const data = await getMovieDetails(imdbID, getSignal());
         setMovie(data);
       } catch (err) {
-        setError(err.message);
+        // Don't show error if request was aborted
+        if (err.type !== ErrorType.ABORTED) {
+          setError(err.message);
+          setErrorType(err.type || ErrorType.UNKNOWN);
+        }
       } finally {
         setLoading(false);
       }
@@ -22,17 +37,27 @@ function MovieModal({ imdbID, onClose }) {
 
     if (imdbID) {
       fetchDetails();
+      // Lock body scroll when modal is open
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
       document.body.style.overflow = 'hidden';
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
     }
 
     return () => {
+      // Restore body scroll and padding
       document.body.style.overflow = 'unset';
+      document.body.style.paddingRight = '0px';
+      // Cancel pending request
+      abort();
     };
   }, [imdbID]);
 
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
     };
 
     if (imdbID) {
@@ -57,30 +82,51 @@ function MovieModal({ imdbID, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
+      aria-describedby="modal-description"
     >
       <div 
+        ref={trapRef}
         className="relative w-full max-h-[95vh] max-w-6xl overflow-hidden rounded-2xl border border-zinc-800/50 bg-black shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {loading && (
-          <div className="flex flex-col items-center justify-center space-y-4 p-16">
+          <div 
+            className="flex flex-col items-center justify-center space-y-4 p-16"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+          >
             <div className="relative h-16 w-16">
               <div className="absolute inset-0 rounded-full border-4 border-red-600/20"></div>
               <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-red-600"></div>
             </div>
             <p className="font-light text-gray-300">Loading movie details...</p>
+            <span className="sr-only">Loading movie information</span>
           </div>
         )}
         
         {error && (
-          <div className="p-16 text-center">
-            <p className="flex items-center justify-center gap-2 text-lg text-red-400">
-              <span className="text-3xl">⚠️</span>
-              <span>{error}</span>
-            </p>
+          <div 
+            className="p-16 text-center"
+            role="alert"
+            aria-live="assertive"
+          >
+            <div className="mb-4 flex items-center justify-center">
+              <span className="text-6xl" aria-hidden="true">
+                {errorType === ErrorType.NETWORK ? '🌐' : 
+                 errorType === ErrorType.NOT_FOUND ? '🎭' : '⚠️'}
+              </span>
+            </div>
+            <h3 className="mb-3 text-xl font-semibold text-red-400">
+              {errorType === ErrorType.NETWORK ? 'Connection Error' : 
+               errorType === ErrorType.NOT_FOUND ? 'Movie Not Found' : 'Error'}
+            </h3>
+            <p className="text-base text-gray-300 mb-6">{error}</p>
             <button 
+              ref={closeButtonRef}
               onClick={onClose}
-              className="mt-8 rounded-xl bg-red-600 px-8 py-3 font-medium text-white transition-all duration-300 hover:bg-red-700"
+              className="rounded-xl bg-red-600 px-8 py-3 font-medium text-white transition-all duration-300 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+              aria-label="Close modal"
             >
               Close
             </button>
@@ -90,11 +136,13 @@ function MovieModal({ imdbID, onClose }) {
         {movie && (
           <div className="relative flex max-h-[95vh] flex-col overflow-y-auto bg-zinc-950">
             <button 
+              ref={closeButtonRef}
               onClick={onClose}
-              className="absolute right-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800/50 bg-black/90 text-gray-300 shadow-lg transition-[transform,background-color,border-color] duration-200 ease-out hover:scale-110 hover:border-red-600/50 hover:bg-red-600 hover:text-white"
-              aria-label="Close modal"
+              className="absolute right-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-full border border-zinc-800/50 bg-black/90 text-gray-300 shadow-lg transition-[transform,background-color,border-color] duration-200 ease-out hover:scale-110 hover:border-red-600/50 hover:bg-red-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-red-600/50"
+              aria-label="Close modal (Press Escape to close)"
+              type="button"
             >
-              ✕
+              <span aria-hidden="true">✕</span>
             </button>
             
             <div className="flex flex-col bg-zinc-950 md:flex-row">
