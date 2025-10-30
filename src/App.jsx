@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import SearchBar from './components/SearchBar';
 import MovieGrid from './components/MovieGrid';
-import MovieModal from './components/MovieModal';
 import Pagination from './components/Pagination';
-import { searchMovies } from './services/omdbApi';
-import { useLocalStorage } from './hooks';
+import { searchMovies, ErrorType } from './services/omdbApi';
+import { useLocalStorage, useAbortController } from './hooks';
+
+// Lazy load MovieModal for better performance
+const MovieModal = lazy(() => import('./components/MovieModal'));
 
 const LOADING_MESSAGES = [
   "🎬 Preparing the red carpet...",
@@ -58,6 +60,7 @@ function App() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [errorType, setErrorType] = useState(null);
   const [selectedMovieId, setSelectedMovieId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
@@ -69,11 +72,18 @@ function App() {
   const [currentCollection, setCurrentCollection] = useState(null);
   const hasFetchedRef = useRef(false);
   
-  const [recentSearches, setRecentSearches] = useLocalStorage('devmovies-recent-searches', []);
+  // Use improved localStorage with options
+  const [recentSearches, setRecentSearches] = useLocalStorage(
+    'devmovies-recent-searches', 
+    [],
+    { maxItems: 5, dedupe: true, normalize: true }
+  );
+  
+  // AbortController for cancelling requests
+  const { getSignal, abort } = useAbortController();
 
   useEffect(() => {
     if (hasFetchedRef.current) return;
-    hasFetchedRef.current = true;
 
     const randomCollection = MOVIE_COLLECTIONS[Math.floor(Math.random() * MOVIE_COLLECTIONS.length)];
     const randomTerm = randomCollection.terms[Math.floor(Math.random() * randomCollection.terms.length)];
@@ -82,17 +92,24 @@ function App() {
       try {
         setLoading(true);
         setError(null);
+        setErrorType(null);
         setCurrentCollection(randomCollection.name);
         setInternalSearchTerm(randomTerm);
         
-        const data = await searchMovies(randomTerm, 1);
+        const signal = getSignal();
+        const data = await searchMovies(randomTerm, 1, signal);
         setMovies(data.Search || []);
         setTotalResults(parseInt(data.totalResults) || 0);
         setCurrentPage(1);
+        hasFetchedRef.current = true;
       } catch (err) {
-        setError(err.message);
-        setMovies([]);
-        setTotalResults(0);
+        if (err.type !== ErrorType.ABORTED) {
+          setError(err.message);
+          setErrorType(err.type || ErrorType.UNKNOWN);
+          setMovies([]);
+          setTotalResults(0);
+          hasFetchedRef.current = true;
+        }
       } finally {
         setLoading(false);
       }
@@ -105,15 +122,20 @@ function App() {
     try {
       setLoading(true);
       setError(null);
+      setErrorType(null);
       
-      const data = await searchMovies(term, page);
+      const data = await searchMovies(term, page, getSignal());
       setMovies(data.Search || []);
       setTotalResults(parseInt(data.totalResults) || 0);
       setCurrentPage(page);
     } catch (err) {
-      setError(err.message);
-      setMovies([]);
-      setTotalResults(0);
+      // Don't show error if request was aborted
+      if (err.type !== ErrorType.ABORTED) {
+        setError(err.message);
+        setErrorType(err.type || ErrorType.UNKNOWN);
+        setMovies([]);
+        setTotalResults(0);
+      }
     } finally {
       setLoading(false);
     }
@@ -177,6 +199,7 @@ function App() {
     try {
       setLoading(true);
       setError(null);
+      setErrorType(null);
       setSearchTerm('');
       setInternalSearchTerm(randomTerm);
       setHasSearched(false);
@@ -184,15 +207,18 @@ function App() {
       setCurrentCollection(randomCollection.name);
       setCurrentPage(1);
       
-      const data = await searchMovies(randomTerm, 1);
+      const data = await searchMovies(randomTerm, 1, getSignal());
       setMovies(data.Search || []);
       setTotalResults(parseInt(data.totalResults) || 0);
       
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setError(err.message);
-      setMovies([]);
-      setTotalResults(0);
+      if (err.type !== ErrorType.ABORTED) {
+        setError(err.message);
+        setErrorType(err.type || ErrorType.UNKNOWN);
+        setMovies([]);
+        setTotalResults(0);
+      }
     } finally {
       setLoading(false);
     }
@@ -209,21 +235,25 @@ function App() {
     try {
       setLoading(true);
       setError(null);
+      setErrorType(null);
       setSearchTerm('');
       setInternalSearchTerm(randomTerm);
       setHasSearched(false);
       setCurrentCollection(randomCollection.name);
       setCurrentPage(1);
       
-      const data = await searchMovies(randomTerm, 1);
+      const data = await searchMovies(randomTerm, 1, getSignal());
       setMovies(data.Search || []);
       setTotalResults(parseInt(data.totalResults) || 0);
       
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setError(err.message);
-      setMovies([]);
-      setTotalResults(0);
+      if (err.type !== ErrorType.ABORTED) {
+        setError(err.message);
+        setErrorType(err.type || ErrorType.UNKNOWN);
+        setMovies([]);
+        setTotalResults(0);
+      }
     } finally {
       setLoading(false);
     }
@@ -264,7 +294,12 @@ function App() {
           />
           
           {loading && (
-            <div className="flex flex-col items-center justify-center space-y-4 p-12">
+            <div 
+              className="flex flex-col items-center justify-center space-y-4 p-12"
+              role="status"
+              aria-live="polite"
+              aria-busy="true"
+            >
               <div className="relative h-16 w-16">
                 <div className="absolute inset-0 rounded-full border-4 border-red-600/30"></div>
                 <div className="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-red-600"></div>
@@ -272,38 +307,80 @@ function App() {
               <p className="text-lg text-gray-300 animate-pulse-subtle transition-all duration-500" key={loadingMessage}>
                 {loadingMessage}
               </p>
+              <span className="sr-only">Loading movies...</span>
             </div>
           )}
           
           {error && (
-            <div className="mx-auto mt-12 max-w-2xl rounded-2xl border border-red-600/30 bg-gradient-to-br from-red-600/10 via-red-600/5 to-transparent p-8 shadow-lg animate-fade-in">
+            <div 
+              className="mx-auto mt-12 max-w-2xl rounded-2xl border border-red-600/30 bg-gradient-to-br from-red-600/10 via-red-600/5 to-transparent p-8 shadow-lg animate-fade-in"
+              role="alert"
+              aria-live="polite"
+            >
               <div className="flex flex-col items-center text-center">
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-600/20 ring-4 ring-red-600/10">
-                  <span className="text-4xl">⚠️</span>
+                  <span className="text-4xl" aria-hidden="true">
+                    {errorType === ErrorType.NETWORK ? '🌐' : 
+                     errorType === ErrorType.RATE_LIMIT ? '⏱️' : 
+                     errorType === ErrorType.SERVER ? '🔧' : 
+                     errorType === ErrorType.NO_RESULTS ? '🎭' : '⚠️'}
+                  </span>
                 </div>
-                <h3 className="mb-3 text-xl font-semibold text-red-400">Search Error</h3>
+                <h3 className="mb-3 text-xl font-semibold text-red-400">
+                  {errorType === ErrorType.NETWORK ? 'Connection Error' : 
+                   errorType === ErrorType.RATE_LIMIT ? 'Too Many Requests' : 
+                   errorType === ErrorType.SERVER ? 'Server Error' : 
+                   errorType === ErrorType.NO_RESULTS ? 'No Results Found' :
+                   errorType === ErrorType.TOO_BROAD ? 'Search Too Broad' : 'Search Error'}
+                </h3>
                 <p className="text-base leading-relaxed text-gray-300">{error}</p>
                 
+                {/* Action buttons based on error type */}
+                <div className="mt-6 flex flex-wrap gap-3 justify-center">
+                  {(errorType === ErrorType.NETWORK || errorType === ErrorType.SERVER || errorType === ErrorType.RATE_LIMIT) && (
+                    <button
+                      onClick={() => fetchMoviesInternal(internalSearchTerm, currentPage)}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                      aria-label="Retry search"
+                    >
+                      🔄 Retry
+                    </button>
+                  )}
+                  
+                  {errorType === ErrorType.NO_RESULTS && (
+                    <button
+                      onClick={handleClearSearch}
+                      className="rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-red-600/20 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                      aria-label="Discover new movies"
+                    >
+                      🎲 Discover Movies
+                    </button>
+                  )}
+                </div>
+                
                 {/* Show suggestions if it's a "too broad" error */}
-                {error.includes('too broad') && (
+                {errorType === ErrorType.TOO_BROAD && (
                   <div className="mt-6 w-full rounded-xl border border-zinc-700/50 bg-zinc-900/50 p-4">
                     <p className="mb-3 text-sm font-medium text-gray-400">💡 Try these examples:</p>
                     <div className="flex flex-wrap gap-2 justify-center">
                       <button
                         onClick={() => handleSearch('Inception 2010')}
                         className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:bg-red-600/20 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                        aria-label="Search for Inception 2010"
                       >
                         "Inception 2010"
                       </button>
                       <button
                         onClick={() => handleSearch('The Dark Knight')}
                         className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:bg-red-600/20 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                        aria-label="Search for The Dark Knight"
                       >
                         "The Dark Knight"
                       </button>
                       <button
                         onClick={() => handleSearch('Avengers Endgame')}
                         className="rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-gray-300 transition-colors hover:bg-red-600/20 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-600/50"
+                        aria-label="Search for Avengers Endgame"
                       >
                         "Avengers Endgame"
                       </button>
@@ -360,8 +437,12 @@ function App() {
           )}
           
           {!loading && !error && movies.length === 0 && searchTerm && (
-            <div className="mx-auto mt-16 max-w-md rounded-2xl border border-red-600/10 bg-zinc-900/80 p-10 text-center shadow-lg animate-fade-in">
-              <p className="mb-6 text-6xl">🎭</p>
+            <div 
+              className="mx-auto mt-16 max-w-md rounded-2xl border border-red-600/10 bg-zinc-900/80 p-10 text-center shadow-lg animate-fade-in"
+              role="status"
+              aria-live="polite"
+            >
+              <p className="mb-6 text-6xl" aria-hidden="true">🎭</p>
               <p className="text-xl font-medium text-white">No movies found</p>
               <p className="mt-3 text-sm text-gray-400">
                 We couldn't find any movies matching <span className="font-medium text-red-500">"{searchTerm}"</span>
@@ -376,10 +457,12 @@ function App() {
         </footer>
       </div>
       
-      <MovieModal 
-        imdbID={selectedMovieId}
-        onClose={handleCloseModal}
-      />
+      <Suspense fallback={null}>
+        <MovieModal 
+          imdbID={selectedMovieId}
+          onClose={handleCloseModal}
+        />
+      </Suspense>
     </div>
   );
 }
